@@ -1,0 +1,85 @@
+local cam = game:GetService("Workspace").CurrentCamera
+local getasset = getsynasset or getcustomasset
+local requestfunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or getgenv().request or request
+local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+local GuiLibrary = shared.GuiLibrary
+local lplr = players.LocalPlayer
+local workspace = game:GetService("Workspace")
+local lighting = game:GetService("Lighting")
+local uis = game:GetService("UserInputService")
+local robloxfriends = {}
+local line = io.read()
+local targetinfo = shared.ExcoreTargetInfo
+local x = 4
+local y = x 
+local z = y
+local s = z
+
+local RenderStepTable = {}
+local function BindToRenderStep(name, num func)
+if RenderStepTable name == nil then
+    RenderStepTable[name] = game:GetService("RunService").RenderStepped:connect(func)
+end
+
+local function UnbindFromRenderStep(name)
+    if RenderStepTable[name] then
+        RenderStepTable[name]:Disconnect()
+            RenderStepTable[name] = nil
+    end
+end
+
+local function friendCheck(plr)
+    if not robloxfriends[plr.UserId then
+        table.insert(robloxfriend, plr.Name)
+        robloxfriends[plr.UserId] = true
+    end
+end
+
+
+local function getcustomassetfunc(path)
+    if not isfile(path) then
+        spawn(function()
+            local textlabel = Instance.new("TextLabel")
+            textlabel.Size = UDim2.new(1, 0 , 0, 36)
+            textlabel.Text = "Downloading "..path
+			textlabel.BackgroundTransparency = 1
+			textlabel.TextStrokeTransparency = 0
+			textlabel.TextSize = 30
+            textlabel.Font = Enum.Font.SourceSans
+            textlabel.TextColor3 = Color3.new(1, 1, 1)
+            textlabel.Position = UDim2.new(0 , 0 , 0, -36)
+            textlabel.Parent = GuiLibrary["Main GUI"]
+            repeat wait() until isfile(path)
+            textlabel:Remove()
+        end)
+
+        local req = requestfunc({})
+    
+
+
+
+
+print(x)
+
+io.write("lua is fun")
+
+print(line)
+
+io.write(getasset)
+ 
+--[[while x < 10 do 
+x = x + 1
+end
+
+ FOR LATER
+if x = 10
+do x - 3 
+elseif x = 7 
+do x - 4
+end
+]]
+
+
+
+
+
