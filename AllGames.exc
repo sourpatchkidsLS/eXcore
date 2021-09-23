@@ -1,0 +1,254 @@
+local cam = game:GetService("Workspace").CurrentCamera
+local getasset = getsynasset or getcustomasset
+local requestfunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or getgenv().request or request
+local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+local GuiLibrary = shared.GuiLibrary
+local lplr = players.LocalPlayer
+local workspace = game:GetService("Workspace")
+local lighting = game:GetService("Lighting")
+local uis = game:GetService("UserInputService")
+local robloxfriends = {}
+local line = io.read()
+local targetinfo = shared.ExcoreTargetInfo
+
+local RenderStepTable = {}
+local function GetAllNearestHumanoidToPosition(distance)
+    local closest, returnedplayer = distance, nil
+    if isAlive then
+        i, v in pairs(players:GetChildren()) do
+            if isPlayerTargetable(v, true, true) and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Head") then
+                local mag = (lplr.Character.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).magnitude
+                if mag <= closest then
+                    closest = mag
+                    returnedplayer = v
+                end
+            end
+        end
+    end
+    return returnedplayer
+end
+
+local function GetNearestHumanoidToMouse(distance, checkvis)
+    local closest, returnedplayer = distance, nil
+    if isAlive() then
+        for i, v in pairs(players:GetChildren()) do
+            if isPlayerTargetable(v, true, true) and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Head") and (checkvis == false or checkvis and (vischeck(v.Character, "Head") or vischeck(v.Character, "HumanoidRootPart"))) then
+                local vec, vis = cam:WorldToScreenPoint(v.Character.HumanoidRootPart.Position)
+                if vis then
+                    local mag = (uis:GetMouseLocation() - Vector2.new(vec.X, vec.Y)).magnitude
+                    if mag <= closest then
+                        closest = mag
+                        returnedplayer = v
+                    end
+                end
+            end
+        end
+    end
+    return returnedplayer
+end
+
+local function CalculateObjectPosition(pos)
+    local newpos = cam:WorldToViewportPoint(cam.CFrame:pointToWorldSpace(cam.CFrame:pointToObjectSpace(pos)))
+    return Vector2.new(newpos.X, newpos.Y)
+end
+
+local function CalculateLine(startVector, endVector, obj)
+    local Distance = (startVector - endVector).Magnitude
+    obj.Size = UDim2.new(0, Distance, 0, 2)
+    obj.Position = UDim2.new(0, (startVector.X + endVector.X) / 2, 0, ((startVector.Y + endVector.Y) / 2) - 36)
+    obj.Rotation = math.atan2(endVector.Y - startVector.Y, endVector.X - startVector.X) * (180 / math.pi)
+end
+
+local function findTouchInterest(tool)
+    for i,v in pairs(tool:GetDescendants()) do
+        if v:IsA("Touch Transmitter") then
+            return v 
+        end
+    end
+    return nil
+end
+
+local radarcam = Instance.new("Camera")
+radarcam.FieldOfView = 45
+local Radar = GuiLibrary.CreateCustomWindow("Radar", "vape/assets/TargetInfoIcon1.png", 16, UDim2.new(0, 177, 0, 6), false)
+local RadarColor = Radar.CreateColorSlider("Player Color", function(val) end)
+local RadarFrame = Instance.new("Frame")
+RadarFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+RadarFrame.BorderSizePixel = 0
+RadarFrame.BackgroundTransparency = 0.5
+RadarFrame.Size = UDim2.new(0, 250, 0, 250)
+RadarFrame.Parent = Radar.GetCustomChildren()
+local RadarBorder1 = RadarFrame:Clone()
+RadarBorder1.Size = UDim2.new(0, 6, 0, 250)
+RadarBorder1.Parent = RadarFrame
+local RadarBorder2 = RadarBorder1:Clone()
+RadarBorder2.Position = UDim2.new(0, 6, 0, 0)
+RadarBorder2.Size = UDim2.new(0, 238, 0, 6)
+RadarBorder2.Parent = RadarFrame
+local RadarBorder3 = RadarBorder1:Clone()
+RadarBorder3.Position = UDim2.new(1, -6, 0, 0)
+RadarBorder3.Size = UDim2.new(0, 6, 0, 250)
+RadarBorder3.Parent = RadarFrame
+local RadarBorder4 = RadarBorder1:Clone()
+RadarBorder4.Position = UDim2.new(0, 6, 1, -6)
+RadarBorder4.Size = UDim2.new(0, 238, 0, 6)
+RadarBorder4.Parent = RadarFrame
+local RadarBorder5 = RadarBorder1:Clone()
+RadarBorder5.Position = UDim2.new(0, 0, 0.5, -1)
+RadarBorder5.BackgroundColor3 = Color3.new(1, 1, 1)
+RadarBorder5.Size = UDim2.new(0, 250, 0, 2)
+RadarBorder5.Parent = RadarFrame
+local RadarBorder6 = RadarBorder1:Clone()
+RadarBorder6.Position = UDim2.new(0.5, -1, 0, 0)
+RadarBorder6.BackgroundColor3 = Color3.new(1, 1, 1)
+RadarBorder6.Size = UDim2.new(0, 2, 0, 124)
+RadarBorder6.Parent = RadarFrame
+local RadarBorder7 = RadarBorder1:Clone()
+RadarBorder7.Position = UDim2.new(0.5, -1, 0, 126)
+RadarBorder7.BackgroundColor3 = Color3.new(1, 1, 1)
+RadarBorder7.Size = UDim2.new(0, 2, 0, 124)
+RadarBorder7.Parent = RadarFrame
+local RadarMainFrame = Instance.new("Frame")
+RadarMainFrame.BackgroundTransparency = 1
+RadarMainFrame.Size = UDim2.new(0, 250, 0, 250)
+RadarMainFrame.Parent = RadarFrame
+Radar.GetCustomChildren().Parent:GetPropertyChangedSignal("Size"):connect(function()
+    RadarFrame.Position = UDim2.new(0, 0, 0, (Radar.GetCustomChildren().Parent.Size.Y.Offset == 0 and 45 or 0))
+end)
+players.PlayerRemoving:connect(function(plr)
+    if RadarMainFrame:FindFirstChild(plr.Name) then
+        RadarMainFrame[plr.Name]:Remove()
+    end
+end)
+GuiLibrary["ObjectsThatCanBeSaved"]["GUIWindow"]["Api"].CreateCustomToggle("Radar", "eXcore/assets/TargetInfoImg.png", function()
+    Radar.SetVisible(true) 
+    BindToRenderStep("Radar", 1, function() 
+        local v278 = (CFrame.new(0, 0, 0):inverse() * cam.CFrame).p * 0.2 * Vector3.new(1, 1, 1);
+        local v279, v280, v281 = cam.CFrame:ToOrientation();
+        local u90 = v280 * 180 / math.pi;
+        local v277 = 0 - u90;
+        local v276 = v278 + Vector3.new(0, 0, 0);
+        radarcam.CFrame = CFrame.new(v276 + Vector3.new(0, 50, 0)) * CFrame.Angles(0, -v277 * (math.pi / 180), 0) * CFrame.Angles(-90 * (math.pi / 180), 0, 0)
+        for i,plr in pairs(players:GetChildren()) do
+            local thing
+            if RadarMainFrame:FindFirstChild(plr.Name) then
+                thing = RadarMainFrame[plr.Name]
+                if thing.Visible then
+                    thing.Visible = false
+                end
+            else
+                thing = Instance.new("Frame")
+                thing.BackgroundTransparency = 0
+                thing.Size = UDim2.new(0, 4, 0, 4)
+                thing.BorderSizePixel = 1
+                thing.BorderColor3 = Color3.new(0, 0, 0)
+                thing.BackgroundColor3 = Color3.new(0, 0, 0)
+                thing.Visible = false
+                thing.Name = plr.Name
+                thing.Parent = RadarMainFrame
+            end
+            
+            if isPlayerTargetable(plr, false, false) then
+                local v238, v239 = radarcam:WorldToViewportPoint((CFrame.new(0, 0, 0):inverse() * plr.Character.HumanoidRootPart.CFrame).p * 0.2)
+                thing.Visible = true
+                thing.BackgroundColor3 = (GuiLibrary["ObjectsThatCanBeSaved"]["Use colorToggle"]["Api"]["Enabled"] and table.find(GuiLibrary["FriendsObject"]["Friends"], plr.Name) and Color3.fromHSV(GuiLibrary["ObjectsThatCanBeSaved"]["Friends ColorSliderColor"]["Api"]["Value"], 1, 1)) or tostring(plr.TeamColor) ~= "White" and plr.TeamColor.Color or Color3.fromHSV(RadarColor["Value"], 1, 1)
+                thing.Position = UDim2.new(math.clamp(v238.X, 0.03, 0.97), -2, math.clamp(v238.Y, 0.03, 0.97), -2)
+            end
+        end
+    end)
+end, function() 
+    Radar.SetVisible(false) 
+    UnbindFromRenderStep("Radar")
+    RadarMainFrame:ClearAllChildren()
+end, false, "OptionsButton", 1)
+
+local aimfov = {["Value"] = 1}
+local aimvischeck = {["Enable"] = false}
+local aimheadshotchance = {["Value"] = 1}
+local aimhitchance = {["Value"] = 1}
+local aimmethod = {["Value"] = "FindPartOnRayWithIgnoreList"}
+local kek = function() end
+local kek2 = function() end
+local tar = nil
+local meta = getrawmetatable(game)
+setreadonly(meta, false)
+local old = meta.__namecall
+local old2 = meta.__index
+local hook
+
+local AimAssist = GuiLibrary["ObjectsThatCanBeSaved"]["CombatWindow"]["Api"].CreateOptionsButton("AimAssist", function() kek() end, function() 
+	UnbindFromRenderStep("AimAssist") 
+	meta.__namecall = old
+	meta.__index = old2
+	tar = nil 
+end, true, function() 
+	if aimmethod["Value"]:match("FindPartOnRay") then
+		return " Ray"
+	else
+		return " "..string.gsub(aimmethod["Value"], "PointToRay", "") 
+	end
+end)
+aimmethod = AimAssist.CreateDropdown("Method", {"FindPartOnRayWithIgnoreList", "FindPartOnRayWithWhitelist", "Raycast", "FindPartOnRay", "ScreenPointToRay", "ViewportPointToRay", "Mouse"}, function(val) end)
+local aimtable = {["FindPartOnRayWithIgnoreList"] = 1, ["FindPartOnRayWithWhitelist"] = 1, ["Raycast"] = 2, ["FindPartOnRay"] = 1, ["ScreenPointToRay"] = 3, ["ViewportPointToRay"] = 3, ["Mouse"] = 4}
+aimvischeck = AimAssist.CreateToggle("Wall Check", function() end, function() end)
+aimfov = AimAssist.CreateSlider("FOV", 1, 1000, function(val) end)
+aimhitchance = AimAssist.CreateSlider("Hit Chance", 1, 100, function(val) end)
+aimheadshotchance = AimAssist.CreateSlider("Headshot Chance", 1, 100, function(val) end)
+
+kek = function()
+	local old3
+	old3 = hookmetamethod(game, "__namecall", function(...)
+		local Namecallaimmethod = getnamecallmethod()
+		local Args = {...}
+		local scriptname = getcallingscript()
+
+		if tar then
+			if not checkcaller() and (scriptname and not scriptname.Name:match("Camera")) and Namecallaimmethod == aimmethod["Value"] then
+				if aimtable[aimmethod["Value"]] == 1 then
+				   Args[2] = Ray.new(Args[2].Origin, (tar.Position + Vector3.new(0, (Args[2].Origin - tar.Position).magnitude/10000, 0) - Args[2].Origin).unit * 10000)
+				   if GuiLibrary["ObjectsThatCanBeSaved"]["Blatant modeToggle"]["Api"]["Enabled"] then
+						return tar, tar.Position, (tar.Position + Vector3.new(0, (Args[2].Origin - tar.Position).magnitude/10000, 0) - Args[2].Origin).unit * 10000, tar.Material
+				   end
+				end
+				if aimtable[aimmethod["Value"]] == 2 then
+				   Args[3] = (tar.Position + Vector3.new(0, (Args[2] - tar.Position).magnitude/10000, 0) - Args[2]).unit * 10000
+				   if GuiLibrary["ObjectsThatCanBeSaved"]["Blatant modeToggle"]["Api"]["Enabled"] then
+						local haha = RaycastParams.new()
+						haha.FilterType = Enum.RaycastFilterType.Whitelist
+						haha.FilterDescendantsInstances = {tar}
+						Args[4] = haha
+				   end
+				end
+				if aimtable[aimmethod["Value"]] == 3 then
+					return Ray.new(cam.CFrame.p, (tar.Position + Vector3.new(0, (cam.CFrame.p - tar.Position).magnitude/10000, 0) - cam.CFrame.p).unit * 10000)
+				end
+			end
+		end
+
+		return old3(unpack(Args))
+	end)
+    BindToRenderStep("AimAssist", 1, function() 
+		local plr = GetNearestHumanoidToMouse(aimfov["Value"], GuiLibrary["ObjectsThatCanBeSaved"]["Blatant modeToggle"]["Api"]["Enabled"] == false and aimvischeck["Enabled"])
+		local targettable = {}
+		local targetsize = 0
+		if plr and (math.floor(Random.new().NextNumber(Random.new(), 0, 1) * 100)) <= aimhitchance["Value"] then
+			targettable[plr.Name] = {
+				["UserId"] = plr.UserId,
+				["Health"] = plr.Character.Humanoid.Health,
+				["MaxHealth"] = plr.Character.Humanoid.MaxHealth
+			}
+			targetsize = targetsize + 1
+			tar = (math.floor(Random.new().NextNumber(Random.new(), 0, 1) * 100)) <= aimheadshotchance["Value"] and plr.Character.Head or plr.Character.HumanoidRootPart
+			targetinfo.UpdateInfo(targettable, targetsize)
+		else
+			tar = nil
+			targetinfo.UpdateInfo({}, 0)
+		end
+    end)
+end
+
+local autoclickercps = {["GetRandomValue"] = function() return 1 end}
+local autoclicker = {["Enabled"] = false}
+local autoclickertick = tick()
+
+autoclicker = GuiLibrary["ObjectsThatCanBeSaved"]
